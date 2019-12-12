@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/u/yhussein/Dev/CSC254/templates/main.cpp
+my_set.h
+/u/yhussein/Dev/CSC254/templates/my_set.h
+
+/u/yhussein/Dev/CSC254/templates/my_set.h
+set
+-
+iostream
+-
+string.h
+-
+type_traits
+-
+

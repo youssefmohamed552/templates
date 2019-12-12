@@ -1,0 +1,3 @@
+/u/yhussein/Dev/CSC254/templates/build/CMakeFiles/rebuild_cache.dir
+/u/yhussein/Dev/CSC254/templates/build/CMakeFiles/main.dir
+/u/yhussein/Dev/CSC254/templates/build/CMakeFiles/edit_cache.dir
