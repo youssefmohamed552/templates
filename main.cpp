@@ -22,10 +22,14 @@ int main() {
     *S2 += 50;
     cout << "50 is " << (S2->contains(50) ? "" : "not ") << "in S2\n";
     cout << "80 is " << (S2->contains(80) ? "" : "not ") << "in S2\n";
-    *S2 += 90;
-    cout << "90 is " << (S2->contains(90) ? "" : "not ") << "in S2\n";
     cout << "89 is " << (S2->contains(89) ? "" : "not ") << "in S2\n";
     cout << "10 is " << (S2->contains(10) ? "" : "not ") << "in S2\n";
+
+    simple_set<int>* S3 = new bin_search_simple_set<int>(10);
+    (*S3 += 10) += 21;
+    cout << "21 is " << (S3->contains(21) ? "" : "not ") << "in S3\n";
+
+
 
 
     std_simple_set<string> U;

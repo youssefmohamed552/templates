@@ -113,8 +113,10 @@ class carray_simple_set : public virtual simple_set<T> {
         m_arr[i] = nullptr;
     }
   virtual ~carray_simple_set() {              // destructor
+  if(!m_arr) return;
     // your code here
     for(size_t i = 0; i < size; i++){
+      if(!m_arr[i]) continue;
       delete m_arr[i];
       m_arr[i] = nullptr;
     }
@@ -161,10 +163,11 @@ class cast_to_int {
 
 // check if prime
 bool is_prime(int n){
-  for(int i = 0; i < n; i++){
-    if(n % i == 0) return true;
+  if(n % 2 == 0 || n % 3 == 0 || n % 5 == 0) return false;
+  for(int i = 7; i < n; i++){
+    if(n % i == 0) return false;
   }
-  return false;
+  return true;
 }
 
 // get next prime number
@@ -192,23 +195,81 @@ class hashed_simple_set : public virtual simple_set<T> {
   // number >= n, use F(e) % p as your hash function, and rehash
   // with kF(e) % p after the kth collision.  (But make sure that
   // F(e) is never 0.)
+  int m_n;
+  int m_p;
+  size_t size;
+  T** m_table;
   public:
-    hashed_simple_set(const int n) {    // constructor
-      // replace this line:
-      (void) n;
+    hashed_simple_set(const int n) 
+      : m_p(next_prime(n)), m_n(n), size(0)
+    {    // constructor
+      // std::cout << "hashed simple set is created with p = : " << m_p << std::endl;
+      m_table = new T*[m_p];
+      for(int i = 0; i < m_p; i++){
+        m_table[i] = nullptr;
+      }
+
     }
-    virtual ~hashed_simple_set() { }    // destructor
+    virtual ~hashed_simple_set() {
+      if(!m_table) return;
+      for(int i = 0; i < m_p; i++){
+        if(!m_table[i]) continue;
+        delete m_table[i];
+        m_table[i] = nullptr;
+      }
+      delete m_table;
+      m_table = nullptr;
+    }    // destructor
     virtual hashed_simple_set<T, F>& operator+=(const T item) {
       // replace this line:
-      (void) item;  return *this;
+      if(!contains(item)){
+        if(size > m_n) throw overflow();
+        int k = 1;
+        int hashed = F()(item);
+        int i = k * hashed;
+        while(m_table[i % m_p]){
+          k++;
+          i = k * hashed;
+        }
+        int index = i % m_p;
+        m_table[index] = new T;
+        *m_table[index] = item;
+      }
+      return *this;
     }
     virtual hashed_simple_set<T, F>& operator-=(const T item) {
       // replace this line:
-      (void) item;  return *this;
+      int k = 1;
+      int hashed = F()(item);
+      int i = k * hashed;
+      int index = i % m_p;
+      while(m_table[index]){
+        if(*m_table[index] == item){
+          delete m_table[index];
+          m_table[index] = nullptr;
+          break;
+        }
+        k++;
+        i = k * hashed;
+        index = i % m_p;
+      }
+      return *this;
     }
     virtual bool contains(const T& item) const {
       // replace this line:
-      (void) item;  return false;
+      int k = 1;
+      int hashed = F()(item);
+      int i = k * hashed;
+      int index = i % m_p;
+      while(m_table[index]){
+        if(*m_table[index] == item){
+          return true;
+        }
+        k++;
+        i = k * hashed;
+        index = i % m_p;
+      }
+      return false;
     }
 };
 
@@ -224,21 +285,85 @@ class bin_search_simple_set : public virtual simple_set<T> {
   // 'virtual' on simple_set ensures single copy if multiply inherited
   // You'll need some data members here.
   int m_max;
+  int m_size;
+  T** m_arr;
+
+  int lookup(const T& item) const {
+    if(m_size == 0) return -1;
+    if(m_size == 1) {
+      if (*m_arr[0] == item) 
+        return 0;
+      else 
+        return -1;
+    }
+    int index = m_size / 2;
+    int left_side = 0, right_side = m_size - 1;
+    while(left_side < right_side){
+      if(*m_arr[index] == item) 
+        return index;
+      else if(*m_arr[index] < item) 
+        right_side = index;
+      else 
+        left_side = index;
+
+      index = ((right_side - left_side) / 2) + left_side;
+    }
+    return -1;
+  }
+
   public:
   // and some methods
   bin_search_simple_set(int max)
-    : m_max(max){}
+    : m_max(max), m_size(0)
+  {
+    m_arr = new T*[max];
+    for(int i = 0; i < m_max; i++){
+      m_arr[i] = nullptr;
+    }
+  }
   simple_set<T, C>& operator+=(const T item){
     //TODO add an element
+    if(m_size == 0){
+      m_arr[0] = new T;
+      *m_arr[0] = item;
+      m_size++;
+      return *this;
+    }
+    if(contains(item))
+      return *this;
+    else {
+      if(m_size >= m_max){
+        throw overflow();
+      }
+    }
+    m_arr[m_size] = new T;
+    for(int i = m_size; i > 0; i--){
+      if(item > *m_arr[i - 1])
+        *m_arr[i] = item;
+      else
+        m_arr[i] = m_arr[i-1];
+    }
+    m_size++;
     return *this;
   }
   simple_set<T, C>& operator-=(const T item){
     //TODO remove an element
+    int index = lookup(item);
+    if(index == -1) return *this;
+    delete m_arr[index];
+    for(int i = index; i < m_size-1; i++)
+      m_arr[i] = m_arr[i+1];
+    m_arr[m_size-1] = nullptr;
     return *this;
   }
   bool contains(const T& item) const{
     // TODO figure out if it contains
-    return false;
+    return lookup(item) != -1;
+  }
+  void print(){
+    for(int i = 0; i < m_size; i++)
+      std::cout << *m_arr[i] << " ";
+    std::cout << std::endl;
   }
 };
 
@@ -366,7 +491,7 @@ class range_set : public virtual simple_set<T> {
 //
 template<typename T, typename C = comp<T>, typename I = increment<T>>
 class std_range_set : public virtual range_set<T, C>,
-  public std_simple_set<T> {
+                      public std_simple_set<T> {
     // 'virtual' on range_set ensures single copy if multiply inherited
     static_assert(std::is_integral<T>::value, "Integral type required.");
     I inc;
@@ -404,16 +529,32 @@ class std_range_set : public virtual range_set<T, C>,
 
 // insert an appropriate carray_range_set declaration here
 template<typename T, typename C = comp<T>, typename I = increment<T>>
-class carray_range_set : public virtual range_set<T, C> {
+class carray_range_set : public virtual range_set<T, C>,
+                         public carray_simple_set<T> {
+  I inc;
   public:
-    carray_range_set(){}
+    virtual carray_simple_set<T>& operator+=(const T item){
+      return carray_simple_set<T>::operator+=(item);
+    }
+    virtual carray_simple_set<T>& operator-=(const T item){
+      return carray_simple_set<T>::operator-=(item);
+    }
+    virtual bool contains(const T& item) const {
+      return carray_simple_set<T>::contains(item);
+    }
     range_set<T, C>& operator+=(const range<T, C> r){
       //TODO fill in insert
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){  
+        *this += i;
+      }
       return *this;
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
       // TODO fill in remove 
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+        *this -= i;
+      }
       return *this;
     }
 };
@@ -421,17 +562,32 @@ class carray_range_set : public virtual range_set<T, C> {
 //---------------------------------------------------------------
 
 // insert an appropriate hashed_range_set declaration here
-template<typename T, typename C = comp<T>, typename I = increment<T>>
-class hashed_range_set : public virtual range_set<T, C> {
+template<typename T, typename F = cast_to_int<T>, typename C = comp<T>, typename I = increment<T>>
+class hashed_range_set : public virtual range_set<T, C>,
+                         public hashed_simple_set<T, F> {
   public:
-    hashed_range_set(){}
+    virtual hashed_simple_set<T>& operator+=(const T item){
+      return hashed_simple_set<T>::operator+=(item);
+    }
+    virtual hashed_simple_set<T>& operator-=(const T item){
+      return hashed_simple_set<T>::operator-=(item);
+    }
+    virtual bool contains(const T& item) const {
+      return hashed_simple_set<T>::contains(item);
+    }
     range_set<T, C>& operator+=(const range<T, C> r){
       //TODO fill in insert
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+        *this += i;
+      }
       return *this;
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
       // TODO fill in remove 
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+        *this -= i;
+      }
       return *this;
     }
 };
@@ -440,9 +596,18 @@ class hashed_range_set : public virtual range_set<T, C> {
 
 // insert an appropriate bin_search_range_set declaration here
 template<typename T, typename C = comp<T>, typename I = increment<T>>
-class bin_search_range_set : public virtual range_set<T, C> {
+class bin_search_range_set : public virtual range_set<T, C>,
+                             public bin_search_range_set<T, C>{
   public:
-    bin_search_range_set(){}
+    virtual bin_search_simple_set<T>& operator+=(const T item){
+      return bin_search_simple_set<T>::operator+=(item);
+    }
+    virtual bin_search_simple_set<T>& operator-=(const T item){
+      return bin_search_simple_set<T>::operator-=(item);
+    }
+    virtual bool contains(const T& item) const {
+      return bin_search_simple_set<T>::contains(item);
+    }
     range_set<T, C>& operator+=(const range<T, C> r){
       //TODO fill in insert
       return *this;
