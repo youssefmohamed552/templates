@@ -28,11 +28,11 @@ class comp {
   public:
     bool precedes(const T& a, const T& b) const {
       // replace this line:
-      (void) a;  (void) b;  return true;
+      return a < b;
     }
     bool equals(const T& a, const T& b) const {
       // replace this line:
-      (void) a;  (void) b;  return true;
+      return a == b;
     }
 };
 
@@ -284,32 +284,35 @@ template<typename T, typename C = comp<T>>
 class bin_search_simple_set : public virtual simple_set<T> {
   // 'virtual' on simple_set ensures single copy if multiply inherited
   // You'll need some data members here.
-  int m_max;
-  int m_size;
-  T** m_arr;
+  protected:
+    int m_max;
+    int m_size;
 
-  int lookup(const T& item) const {
-    if(m_size == 0) return -1;
-    if(m_size == 1) {
-      if (*m_arr[0] == item) 
-        return 0;
-      else 
-        return -1;
-    }
-    int index = m_size / 2;
-    int left_side = 0, right_side = m_size - 1;
-    while(left_side < right_side){
-      if(*m_arr[index] == item) 
-        return index;
-      else if(*m_arr[index] < item) 
-        right_side = index;
-      else 
-        left_side = index;
+  private: 
+    T** m_arr;
 
-      index = ((right_side - left_side) / 2) + left_side;
+    int lookup(const T& item) const {
+      if(m_size == 0) return -1;
+      if(m_size == 1) {
+        if (*m_arr[0] == item) 
+          return 0;
+        else 
+          return -1;
+      }
+      int index = m_size / 2;
+      int left_side = 0, right_side = m_size - 1;
+      while(left_side < right_side){
+        if(*m_arr[index] == item) 
+          return index;
+        else if(*m_arr[index] < item) 
+          right_side = index;
+        else 
+          left_side = index;
+
+        index = ((right_side - left_side) / 2) + left_side;
+      }
+      return -1;
     }
-    return -1;
-  }
 
   public:
   // and some methods
@@ -414,14 +417,41 @@ class range {
   // You may also find it useful to define the following:
   // bool precedes(const range<T, C>& other) const { ...
   bool precedes(const range<T, C>& other) const {
-    // TODO fill method
-    return false;
+    if(other.low() > H) return false;   // comes ahead
+    return true;
   }
   // bool overlaps(const range<T, C>& other) const { ...
   bool overlaps(const range<T, C>& other) const {
     // TODO fill method
-    return false;
+    // completely outside of one another then no overlap
+    if((other.low() > H) || (other.high() < L)) return false;
+    if(other.low() == H && !other.closed_low() && !Hinc) return false;
+    if(other.high() == L && !other.close_high() && !Linc) return false;
+    return true;
   }
+
+  bool has(const T& item){
+    if( item < L || item > H) return false;
+    if((item == L && !Linc) || (item == H && !Hinc)) return false;
+    return true;
+  }
+
+  // merge two ranges together
+  range<T, C>& merge(const range<T, C>& other) {
+    if(other.high() >= H){
+      H = other.high();
+      Hinc = (Hinc || other.closed_high());
+    }
+    if(other.low() <= L){
+      L = other.low();
+      Linc = (Linc || other.closed_low());
+    }
+    return *this;
+  }
+
+
+
+
 };
 
 // You may find it useful to define derived types with two-argument
@@ -543,7 +573,6 @@ class carray_range_set : public virtual range_set<T, C>,
       return carray_simple_set<T>::contains(item);
     }
     range_set<T, C>& operator+=(const range<T, C> r){
-      //TODO fill in insert
       for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){  
         *this += i;
       }
@@ -551,7 +580,6 @@ class carray_range_set : public virtual range_set<T, C>,
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
-      // TODO fill in remove 
       for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
         *this -= i;
       }
@@ -565,6 +593,7 @@ class carray_range_set : public virtual range_set<T, C>,
 template<typename T, typename F = cast_to_int<T>, typename C = comp<T>, typename I = increment<T>>
 class hashed_range_set : public virtual range_set<T, C>,
                          public hashed_simple_set<T, F> {
+  I inc;
   public:
     virtual hashed_simple_set<T>& operator+=(const T item){
       return hashed_simple_set<T>::operator+=(item);
@@ -576,7 +605,6 @@ class hashed_range_set : public virtual range_set<T, C>,
       return hashed_simple_set<T>::contains(item);
     }
     range_set<T, C>& operator+=(const range<T, C> r){
-      //TODO fill in insert
       for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
         *this += i;
       }
@@ -584,7 +612,6 @@ class hashed_range_set : public virtual range_set<T, C>,
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
-      // TODO fill in remove 
       for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
         *this -= i;
       }
@@ -597,24 +624,147 @@ class hashed_range_set : public virtual range_set<T, C>,
 // insert an appropriate bin_search_range_set declaration here
 template<typename T, typename C = comp<T>, typename I = increment<T>>
 class bin_search_range_set : public virtual range_set<T, C>,
-                             public bin_search_range_set<T, C>{
+                             public bin_search_simple_set<T, C>{
+
+    int m_max;
+    int m_size;
+    I inc;
+    range<T>* m_range_arr;
   public:
+    bin_search_range_set(int max)
+      : m_max( max ), m_size(0)
+    {
+      m_range_arr = new range<T>[max + 1];
+    }
+
+    int lookup(const T& item) const {
+      if(m_size == 0) return -1;
+      if(m_size == 1) {
+        if (m_range_arr[0].has(item))
+          return 0;
+        else 
+          return -1;
+      }
+      int index = m_size / 2;
+      int left_side = 0, right_side = m_size - 1;
+      while(left_side < right_side){
+        if(m_range_arr[index].has(item))
+          return index;
+        else if(m_range_arr[index].precedes(item))
+          right_side = index;
+        else 
+          left_side = index;
+
+        index = ((right_side - left_side) / 2) + left_side;
+      }
+      return -1;
+    }
+
+
     virtual bin_search_simple_set<T>& operator+=(const T item){
-      return bin_search_simple_set<T>::operator+=(item);
+      // create a range out of the element
+      return (*this += CCrange<T, C>(item, item));
     }
     virtual bin_search_simple_set<T>& operator-=(const T item){
-      return bin_search_simple_set<T>::operator-=(item);
+      //TODO
+      // look up the element in range
+      return (*this -= CCrange<T, C>(item, item));
     }
     virtual bool contains(const T& item) const {
-      return bin_search_simple_set<T>::contains(item);
+      // TODO
+      int left_side = 0, right_side = m_size-1, index = right_side / 2;
+      while(left_side < right_side){
+        if(m_range_arr[index].contains(item)) return true;
+        if((item > m_range_arr[index].high() && m_range_arr[index].closed_high()) || (item >= m_range_arr[index].high() && !m_range_arr[index].closed_high())){
+          left_side = index;
+        }
+        else{
+          right_side = index;
+        }
+        index = ((right_side - left_side) / 2) + left_side;
+      }
+      return false;
     }
+
+    bool overlap_in_list(const range<T, C>& r){
+        // check if it interecs with any 
+        int left_side = 0, right_side = m_size, index = m_size / 2;
+        while(left_side < right_side){
+          if(m_range_arr[index].overlap(r)) return true;
+          if(m_range_arr[index].precedes(r)){
+            index = left_side;
+          }
+          else{
+            index = right_side;
+          } 
+          index = ((right_side - left_side) / 2) + left_side;
+        }
+        return false;
+    }
+
     range_set<T, C>& operator+=(const range<T, C> r){
       //TODO fill in insert
+      // intial range added to the array
+      if(m_size >= m_max && !overlap_in_list(r)) throw overflow();
+      m_size++;
+      if(m_size == 0){
+        m_range_arr[0] = r;
+      }
+
+
+      range<T, C> temp_r = r;
+      int merged = 0;
+      int i = 0;
+      for(i = m_size-2; i >= 0; i--){
+        if(temp_r.precedes(m_range_arr[i])){
+          m_range_arr[i+1] = m_range_arr[i];
+          continue;
+        }
+        if(m_range_arr[i].precedes(temp_r)){
+          m_range_arr[i+1] = temp_r;
+          break;
+        }
+        if(m_range_arr[i].overlap(temp_r)){
+          temp_r = m_range_arr[i].merge(temp_r);
+          merged++;
+          m_range_arr[i] = temp_r;
+        }
+      }
+
+      for(int j = i + merged; j < m_size; j++){
+        m_range_arr[j-merged] = m_range_arr[j]; 
+      }
+      m_size -= merged;
+
       return *this;
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
       // TODO fill in remove 
+      range<T, C> temp_r = r;
+      int i = 0;
+      int removed = 0;
+      for(i = m_size-1; i >= 0; i--){
+        if(temp_r.precedes(m_range_arr[i])) continue;
+        if(m_range_arr[i].precedes(temp_r)) break;
+        if(m_range_arr[i].overlap(temp_r)){
+          if(m_range_arr[i].is_inclosed(temp_r)) removed++;
+          if(temp_r.is_inclosed(m_range_arr[i])){
+            // check if it over flows
+            if(m_size >= m_max) throw overflow();
+            // shift all the elements
+            for(int j = m_size-1; j > i; j--){
+              m_range_arr[j+1] = m_range_arr[j];
+            }
+            m_range_arr[i+1] = range<T, C>(temp_r.high(), !temp_r.closed_high() , m_range_arr[i].high(), m_range_arr[i].closed_high());
+            m_range_arr[i] = range<T, C>(m_range_arr[i].low(), m_range_arr[i].closed_low(), temp_r.low(), !temp_r.closed_low());
+          }
+        }
+      }
+      for(int j = i + removed; j < m_size; j++){
+        m_range_arr[j-removed] = m_range_arr[j];
+        m_size -= removed;
+      }
       return *this;
     }
 };
