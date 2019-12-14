@@ -14,6 +14,8 @@ We augmented the provided starter code to implement three versions of both simpl
 * bin_search_simple_set<T, C>
 * bin_search_range_set<T, C>
 
+bin_search_range_set has not been tested as much as the others so the others are fully functional but bin_test doens't function fully as expected on some cases
+
 # Extra credit
 
 * operator -(difference) is implemented
