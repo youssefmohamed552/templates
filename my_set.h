@@ -284,11 +284,10 @@ template<typename T, typename C = comp<T>>
 class bin_search_simple_set : public virtual simple_set<T> {
   // 'virtual' on simple_set ensures single copy if multiply inherited
   // You'll need some data members here.
-  protected:
+  public:
     int m_max;
     int m_size;
 
-  private: 
     T** m_arr;
 
     int lookup(const T& item) const {
@@ -314,7 +313,6 @@ class bin_search_simple_set : public virtual simple_set<T> {
       return -1;
     }
 
-  public:
   // and some methods
   bin_search_simple_set(int max)
     : m_max(max), m_size(0)
@@ -426,7 +424,7 @@ class range {
     // completely outside of one another then no overlap
     if((other.low() > H) || (other.high() < L)) return false;
     if(other.low() == H && !other.closed_low() && !Hinc) return false;
-    if(other.high() == L && !other.close_high() && !Linc) return false;
+    if(other.high() == L && !other.closed_high() && !Linc) return false;
     return true;
   }
 
@@ -449,7 +447,12 @@ class range {
     return *this;
   }
 
-
+  bool is_inclosed(const range<T, C>& other){
+    if(other.high() > H && other.low() < L) return true;
+    if((other.high() == H && Hinc) && other.low() < L) return true;
+    if((other.low() == L && Linc) && other.high() > H) return true;
+    return false;
+  }
 
 
 };
@@ -563,6 +566,10 @@ class carray_range_set : public virtual range_set<T, C>,
                          public carray_simple_set<T> {
   I inc;
   public:
+    carray_range_set(const T l, const T h)
+    : carray_simple_set<T>(l,h)
+    {
+    }
     virtual carray_simple_set<T>& operator+=(const T item){
       return carray_simple_set<T>::operator+=(item);
     }
@@ -573,14 +580,14 @@ class carray_range_set : public virtual range_set<T, C>,
       return carray_simple_set<T>::contains(item);
     }
     range_set<T, C>& operator+=(const range<T, C> r){
-      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){  
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); i = inc(i)){  
         *this += i;
       }
       return *this;
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
-      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); i = inc(i)){
         *this -= i;
       }
       return *this;
@@ -595,6 +602,9 @@ class hashed_range_set : public virtual range_set<T, C>,
                          public hashed_simple_set<T, F> {
   I inc;
   public:
+    hashed_range_set(const int n)
+    : hashed_simple_set<T, F>(n){}
+
     virtual hashed_simple_set<T>& operator+=(const T item){
       return hashed_simple_set<T>::operator+=(item);
     }
@@ -605,14 +615,14 @@ class hashed_range_set : public virtual range_set<T, C>,
       return hashed_simple_set<T>::contains(item);
     }
     range_set<T, C>& operator+=(const range<T, C> r){
-      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); i = inc(i)){
         *this += i;
       }
       return *this;
     }
 
     range_set<T, C>& operator-= (const range<T, C> r){
-      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); inc(i)){
+      for(T i = (r.closed_low() ? r.low() : inc(r.low())); r.contains(i); i = inc(i)){
         *this -= i;
       }
       return *this;
@@ -629,12 +639,15 @@ class bin_search_range_set : public virtual range_set<T, C>,
     int m_max;
     int m_size;
     I inc;
-    range<T>* m_range_arr;
+    range<T>** m_range_arr;
   public:
-    bin_search_range_set(int max)
-      : m_max( max ), m_size(0)
-    {
-      m_range_arr = new range<T>[max + 1];
+    // bin_search_range_set(){}
+   bin_search_range_set(int max)
+   : bin_search_simple_set<T, C>(max)
+   {
+      // m_max = max;
+      // m_size = 0;
+      // m_range_arr = new range<T>*[max + 1];
     }
 
     int lookup(const T& item) const {
@@ -661,11 +674,11 @@ class bin_search_range_set : public virtual range_set<T, C>,
     }
 
 
-    virtual bin_search_simple_set<T>& operator+=(const T item){
+    virtual range_set<T, C>& operator+=(const T item){
       // create a range out of the element
       return (*this += CCrange<T, C>(item, item));
     }
-    virtual bin_search_simple_set<T>& operator-=(const T item){
+    virtual range_set<T, C>& operator-=(const T item){
       //TODO
       // look up the element in range
       return (*this -= CCrange<T, C>(item, item));
@@ -674,8 +687,8 @@ class bin_search_range_set : public virtual range_set<T, C>,
       // TODO
       int left_side = 0, right_side = m_size-1, index = right_side / 2;
       while(left_side < right_side){
-        if(m_range_arr[index].contains(item)) return true;
-        if((item > m_range_arr[index].high() && m_range_arr[index].closed_high()) || (item >= m_range_arr[index].high() && !m_range_arr[index].closed_high())){
+        if(m_range_arr[index]->contains(item)) return true;
+        if((item > m_range_arr[index]->high() && m_range_arr[index]->closed_high()) || (item >= m_range_arr[index]->high() && !m_range_arr[index]->closed_high())){
           left_side = index;
         }
         else{
@@ -690,8 +703,8 @@ class bin_search_range_set : public virtual range_set<T, C>,
         // check if it interecs with any 
         int left_side = 0, right_side = m_size, index = m_size / 2;
         while(left_side < right_side){
-          if(m_range_arr[index].overlap(r)) return true;
-          if(m_range_arr[index].precedes(r)){
+          if(m_range_arr[index]->overlaps(r)) return true;
+          if(m_range_arr[index]->precedes(r)){
             index = left_side;
           }
           else{
@@ -708,7 +721,7 @@ class bin_search_range_set : public virtual range_set<T, C>,
       if(m_size >= m_max && !overlap_in_list(r)) throw overflow();
       m_size++;
       if(m_size == 0){
-        m_range_arr[0] = r;
+        *m_range_arr[0] = r;
       }
 
 
@@ -716,18 +729,18 @@ class bin_search_range_set : public virtual range_set<T, C>,
       int merged = 0;
       int i = 0;
       for(i = m_size-2; i >= 0; i--){
-        if(temp_r.precedes(m_range_arr[i])){
+        if(temp_r.precedes(*m_range_arr[i])){
           m_range_arr[i+1] = m_range_arr[i];
           continue;
         }
-        if(m_range_arr[i].precedes(temp_r)){
-          m_range_arr[i+1] = temp_r;
+        if(m_range_arr[i]->precedes(temp_r)){
+          *m_range_arr[i+1] = temp_r;
           break;
         }
-        if(m_range_arr[i].overlap(temp_r)){
-          temp_r = m_range_arr[i].merge(temp_r);
+        if(m_range_arr[i]->overlaps(temp_r)){
+          temp_r = m_range_arr[i]->merge(temp_r);
           merged++;
-          m_range_arr[i] = temp_r;
+          *m_range_arr[i] = temp_r;
         }
       }
 
@@ -745,19 +758,19 @@ class bin_search_range_set : public virtual range_set<T, C>,
       int i = 0;
       int removed = 0;
       for(i = m_size-1; i >= 0; i--){
-        if(temp_r.precedes(m_range_arr[i])) continue;
-        if(m_range_arr[i].precedes(temp_r)) break;
-        if(m_range_arr[i].overlap(temp_r)){
-          if(m_range_arr[i].is_inclosed(temp_r)) removed++;
-          if(temp_r.is_inclosed(m_range_arr[i])){
+        if(temp_r.precedes(*m_range_arr[i])) continue;
+        if(m_range_arr[i]->precedes(temp_r)) break;
+        if(m_range_arr[i]->overlaps(temp_r)){
+          if(m_range_arr[i]->is_inclosed(temp_r)) removed++;
+          if(temp_r.is_inclosed(*m_range_arr[i])){
             // check if it over flows
             if(m_size >= m_max) throw overflow();
             // shift all the elements
             for(int j = m_size-1; j > i; j--){
               m_range_arr[j+1] = m_range_arr[j];
             }
-            m_range_arr[i+1] = range<T, C>(temp_r.high(), !temp_r.closed_high() , m_range_arr[i].high(), m_range_arr[i].closed_high());
-            m_range_arr[i] = range<T, C>(m_range_arr[i].low(), m_range_arr[i].closed_low(), temp_r.low(), !temp_r.closed_low());
+            m_range_arr[i+1] = new range<T, C>(temp_r.high(), !temp_r.closed_high() , m_range_arr[i]->high(), m_range_arr[i]->closed_high());
+            m_range_arr[i] = new range<T, C>(m_range_arr[i]->low(), m_range_arr[i]->closed_low(), temp_r.low(), !temp_r.closed_low());
           }
         }
       }

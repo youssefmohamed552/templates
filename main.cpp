@@ -11,7 +11,6 @@ int main() {
     cout << "3 is " << (R.contains(3) ? "" : "not ") << "in R\n";
     cout << "5 is " << (R.contains(5) ? "" : "not ") << "in R\n";
 
-
     simple_set<double>* S = new std_simple_set<double>();
     *S += 3.14;
     cout << "pi is " << (S->contains(3.14) ? "" : "not ") << "in S\n";
@@ -49,7 +48,7 @@ int main() {
 
     // The following will not work correctly yet:
 
-    range_set<int>* X = new std_range_set<int>();
+    range_set<int>* X = new bin_search_range_set<int>(15);
     *X += range<int>(5, true, 8, false);
     if (X->contains(4)) cout << "4 is in X\n";
     if (X->contains(5)) cout << "5 is in X\n";      // should print
